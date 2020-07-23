@@ -11,12 +11,14 @@ const resolvers = {
     about: about.getMessage,
     issueList: issue.list,
     issue: issue.get,
+    issueCounts: issue.counts,
   },
   Mutation: {
     setAboutMessage: about.setMessage,
     issueAdd: issue.add,
     issueUpdate: issue.update,
     issueDelete: issue.delete,
+    issueRestore: issue.restore,
   },
   GraphQLDate,
 };
@@ -35,8 +37,11 @@ const server = new ApolloServer({
 });
 
 function installHandler(app) {
-  const enableCors = (process.env.ENABLE_CORS || 'true') === 'true';
-  console.log('CORS setting:', enableCors);
+  // const enableCors = (process.env.ENABLE_CORS || 'true') === 'true';
+  const enableCors = {
+    credentials: true,
+    origin: true,
+  };
   server.applyMiddleware({ app, path: '/graphql', cors: enableCors });
 }
 
