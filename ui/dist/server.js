@@ -22,7 +22,7 @@
 /******/
 /******/ 	var hotApplyOnUpdate = true;
 /******/ 	// eslint-disable-next-line no-unused-vars
-/******/ 	var hotCurrentHash = "c066105ecc722717f7e2";
+/******/ 	var hotCurrentHash = "1880dde9212c64bb9497";
 /******/ 	var hotRequestTimeout = 10000;
 /******/ 	var hotCurrentModuleData = {};
 /******/ 	var hotCurrentChildModule;
@@ -1016,10 +1016,12 @@ async function render(req, res) {
     const match = Object(react_router_dom__WEBPACK_IMPORTED_MODULE_2__["matchPath"])(req.path, activeRoute);
     const index = req.url.indexOf('?');
     const search = index !== -1 ? req.url.substr(index) : null;
-    initialData = await activeRoute.component.fetchData(match, search);
+    initialData = await activeRoute.component.fetchData(match, search, req.headers.cookie);
   }
 
+  const userData = await _src_Page_jsx__WEBPACK_IMPORTED_MODULE_3__["default"].fetchData(req.headers.cookie);
   _src_store_js__WEBPACK_IMPORTED_MODULE_5__["default"].initialData = initialData;
+  _src_store_js__WEBPACK_IMPORTED_MODULE_5__["default"].userData = userData;
   const context = {};
   const element = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_2__["StaticRouter"], {
     location: req.url,
@@ -1030,7 +1032,7 @@ async function render(req, res) {
   if (context.url) {
     res.redirect(301, context.url);
   } else {
-    res.send(Object(_template_js__WEBPACK_IMPORTED_MODULE_4__["default"])(body, initialData));
+    res.send(Object(_template_js__WEBPACK_IMPORTED_MODULE_4__["default"])(body, initialData, userData));
   }
 }
 
@@ -1051,7 +1053,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var serialize_javascript__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! serialize-javascript */ "serialize-javascript");
 /* harmony import */ var serialize_javascript__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(serialize_javascript__WEBPACK_IMPORTED_MODULE_0__);
 
-function template(body, data) {
+function template(body, initialData, userData) {
   return `<!DOCTYPE HTML>
 <html>
 <head>
@@ -1059,6 +1061,7 @@ function template(body, data) {
   <title>Pro MERN Stack</title>
   <link rel="stylesheet" href="/bootstrap/css/bootstrap.min.css" >
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://apis.google.com/js/api:client.js"></script>
   <style>
     table.table-hover tr {cursor: pointer;}
     .panel-title a {display: block; width: 100%; cursor: pointer;}
@@ -1067,7 +1070,10 @@ function template(body, data) {
 <body>
   <!-- Page generated from template. -->
   <div id="contents">${body}</div>
-  <script>window.__INITIAL_DATA__ = ${serialize_javascript__WEBPACK_IMPORTED_MODULE_0___default()(data)}</script>
+  <script>
+    window.__INITIAL_DATA__ = ${serialize_javascript__WEBPACK_IMPORTED_MODULE_0___default()(initialData)}
+    window.__USER_DATA__ = ${serialize_javascript__WEBPACK_IMPORTED_MODULE_0___default()(userData)}
+  </script>
   <script src="/env.js"></script>
   <script src="/vendor.bundle.js"></script>
   <script src="/app.bundle.js"></script>
@@ -1135,6 +1141,9 @@ if (apiProxyTarget) {
   app.use('/graphql', http_proxy_middleware__WEBPACK_IMPORTED_MODULE_2___default()({
     target: apiProxyTarget
   }));
+  app.use('/auth', http_proxy_middleware__WEBPACK_IMPORTED_MODULE_2___default()({
+    target: apiProxyTarget
+  }));
 }
 
 if (!process.env.UI_API_ENDPOINT) {
@@ -1145,9 +1154,15 @@ if (!process.env.UI_SERVER_API_ENDPOINT) {
   process.env.UI_SERVER_API_ENDPOINT = process.env.UI_API_ENDPOINT;
 }
 
+if (!process.env.UI_AUTH_ENDPOINT) {
+  process.env.UI_AUTH_ENDPOINT = 'http://localhost:3000/auth';
+}
+
 app.get('/env.js', (req, res) => {
   const env = {
-    UI_API_ENDPOINT: process.env.UI_API_ENDPOINT
+    UI_API_ENDPOINT: process.env.UI_API_ENDPOINT,
+    UI_AUTH_ENDPOINT: process.env.UI_AUTH_ENDPOINT,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID
   };
   res.send(`window.ENV = ${JSON.stringify(env)}`);
 });
@@ -1439,7 +1454,13 @@ class IssueAddNavItem extends react__WEBPACK_IMPORTED_MODULE_0___default.a.Compo
     const {
       showing
     } = this.state;
+    const {
+      user: {
+        signedIn
+      }
+    } = this.props;
     return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react__WEBPACK_IMPORTED_MODULE_0___default.a.Fragment, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_2__["NavItem"], {
+      disabled: !signedIn,
       onClick: this.showModal
     }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_2__["OverlayTrigger"], {
       placement: "left",
@@ -1526,6 +1547,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _TextInput_jsx__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./TextInput.jsx */ "./src/TextInput.jsx");
 /* harmony import */ var _withToast_jsx__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./withToast.jsx */ "./src/withToast.jsx");
 /* harmony import */ var _store_js__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./store.js */ "./src/store.js");
+/* harmony import */ var _UserContext_js__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./UserContext.js */ "./src/UserContext.js");
+
 
 
 
@@ -1752,6 +1775,7 @@ class IssueEdit extends react__WEBPACK_IMPORTED_MODULE_0___default.a.Component {
         due
       }
     } = this.state;
+    const user = this.context;
     return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Panel"], null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Panel"].Heading, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Panel"].Title, null, `Editing issue: ${id}`)), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Panel"].Body, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Form"], {
       horizontal: true,
       onSubmit: this.handleSubmit
@@ -1844,6 +1868,7 @@ class IssueEdit extends react__WEBPACK_IMPORTED_MODULE_0___default.a.Component {
       smOffset: 3,
       sm: 6
     }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["ButtonToolbar"], null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Button"], {
+      disabled: !user.signedIn,
       bsStyle: "primary",
       type: "submit"
     }, "Submit"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_router_bootstrap__WEBPACK_IMPORTED_MODULE_2__["LinkContainer"], {
@@ -1862,6 +1887,7 @@ class IssueEdit extends react__WEBPACK_IMPORTED_MODULE_0___default.a.Component {
 
 }
 
+IssueEdit.contextType = _UserContext_js__WEBPACK_IMPORTED_MODULE_10__["default"];
 const IssueEditWithToast = Object(_withToast_jsx__WEBPACK_IMPORTED_MODULE_8__["default"])(IssueEdit);
 IssueEditWithToast.fetchData = IssueEdit.fetchData;
 /* harmony default export */ __webpack_exports__["default"] = (IssueEditWithToast);
@@ -2552,76 +2578,91 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react_router_bootstrap__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react_router_bootstrap__WEBPACK_IMPORTED_MODULE_2__);
 /* harmony import */ var react_bootstrap__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react-bootstrap */ "react-bootstrap");
 /* harmony import */ var react_bootstrap__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var _UserContext_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./UserContext.js */ "./src/UserContext.js");
 
 
 
 
-const IssueRow = Object(react_router_dom__WEBPACK_IMPORTED_MODULE_1__["withRouter"])(({
-  issue,
-  location: {
-    search
-  },
-  closeIssue,
-  deleteIssue,
-  index
-}) => {
-  const selectLocation = {
-    pathname: `/issues/${issue.id}`,
-    search
-  };
-  const editTooltip = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Tooltip"], {
-    id: "close-tooltip",
-    placement: "top"
-  }, "Edit Issue");
-  const closeTooltip = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Tooltip"], {
-    id: "close-tooltip",
-    placement: "top"
-  }, "Close Issue");
-  const deleteTooltip = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Tooltip"], {
-    id: "delete-tooltip",
-    placement: "top"
-  }, "Delete Issue");
+ // eslint-disable-next-line react/prefer-stateless-function
 
-  function onClose(e) {
-    e.preventDefault();
-    closeIssue(index);
+class IssueRowPlain extends react__WEBPACK_IMPORTED_MODULE_0___default.a.Component {
+  render() {
+    const {
+      issue,
+      location: {
+        search
+      },
+      closeIssue,
+      deleteIssue,
+      index
+    } = this.props;
+    const user = this.context;
+    const disabled = !user.signedIn;
+    const selectLocation = {
+      pathname: `/issues/${issue.id}`,
+      search
+    };
+    const editTooltip = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Tooltip"], {
+      id: "close-tooltip",
+      placement: "top"
+    }, "Edit Issue");
+    const closeTooltip = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Tooltip"], {
+      id: "close-tooltip",
+      placement: "top"
+    }, "Close Issue");
+    const deleteTooltip = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Tooltip"], {
+      id: "delete-tooltip",
+      placement: "top"
+    }, "Delete Issue");
+
+    function onClose(e) {
+      e.preventDefault();
+      closeIssue(index);
+    }
+
+    function onDelete(e) {
+      e.preventDefault();
+      deleteIssue(index);
+    }
+
+    const tableRow = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("tr", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.id), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.status), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.owner), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.created.toDateString()), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.effort), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.due ? issue.due.toDateString() : ''), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.title), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_router_bootstrap__WEBPACK_IMPORTED_MODULE_2__["LinkContainer"], {
+      to: `/edit/${issue.id}`
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["OverlayTrigger"], {
+      delayShow: 1000,
+      overlay: editTooltip
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Button"], {
+      bsSize: "xsmall"
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Glyphicon"], {
+      glyph: "edit"
+    })))), ' ', /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["OverlayTrigger"], {
+      delayShow: 1000,
+      overlay: closeTooltip
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Button"], {
+      disabled: disabled,
+      bsSize: "xsmall",
+      onClick: onClose
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Glyphicon"], {
+      glyph: "remove"
+    }))), ' ', /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["OverlayTrigger"], {
+      delayShow: 1000,
+      overlay: deleteTooltip
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Button"], {
+      disabled: disabled,
+      bsSize: "xsmall",
+      onClick: onDelete
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Glyphicon"], {
+      glyph: "trash"
+    })))));
+    return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_router_bootstrap__WEBPACK_IMPORTED_MODULE_2__["LinkContainer"], {
+      to: selectLocation
+    }, tableRow);
   }
 
-  function onDelete(e) {
-    e.preventDefault();
-    deleteIssue(index);
-  }
+}
 
-  const tableRow = /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("tr", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.id), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.status), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.owner), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.created.toDateString()), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.effort), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.due ? issue.due.toDateString() : ''), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, issue.title), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("td", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_router_bootstrap__WEBPACK_IMPORTED_MODULE_2__["LinkContainer"], {
-    to: `/edit/${issue.id}`
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["OverlayTrigger"], {
-    delayShow: 1000,
-    overlay: editTooltip
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Button"], {
-    bsSize: "xsmall"
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Glyphicon"], {
-    glyph: "edit"
-  })))), ' ', /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["OverlayTrigger"], {
-    delayShow: 1000,
-    overlay: closeTooltip
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Button"], {
-    bsSize: "xsmall",
-    onClick: onClose
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Glyphicon"], {
-    glyph: "remove"
-  }))), ' ', /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["OverlayTrigger"], {
-    delayShow: 1000,
-    overlay: deleteTooltip
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Button"], {
-    bsSize: "xsmall",
-    onClick: onDelete
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_3__["Glyphicon"], {
-    glyph: "trash"
-  })))));
-  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_router_bootstrap__WEBPACK_IMPORTED_MODULE_2__["LinkContainer"], {
-    to: selectLocation
-  }, tableRow);
-});
+IssueRowPlain.contextType = _UserContext_js__WEBPACK_IMPORTED_MODULE_4__["default"];
+const IssueRow = Object(react_router_dom__WEBPACK_IMPORTED_MODULE_1__["withRouter"])(IssueRowPlain);
+delete IssueRow.contextType;
 function IssueTable({
   issues,
   closeIssue,
@@ -2753,7 +2794,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react_router_bootstrap__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react_router_bootstrap__WEBPACK_IMPORTED_MODULE_2__);
 /* harmony import */ var _Contents_jsx__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./Contents.jsx */ "./src/Contents.jsx");
 /* harmony import */ var _IssueAddNavItem_jsx__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./IssueAddNavItem.jsx */ "./src/IssueAddNavItem.jsx");
-/* harmony import */ var _Search_jsx__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./Search.jsx */ "./src/Search.jsx");
+/* harmony import */ var _SignInNavItem_jsx__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./SignInNavItem.jsx */ "./src/SignInNavItem.jsx");
+/* harmony import */ var _Search_jsx__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./Search.jsx */ "./src/Search.jsx");
+/* harmony import */ var _UserContext_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./UserContext.js */ "./src/UserContext.js");
+/* harmony import */ var _graphQLFetch_js__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./graphQLFetch.js */ "./src/graphQLFetch.js");
+/* harmony import */ var _store_js__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./store.js */ "./src/store.js");
 
 
 
@@ -2761,7 +2806,14 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-function NavBar() {
+
+
+
+
+function NavBar({
+  user,
+  onUserChange
+}) {
   return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Navbar"], {
     fluid: true
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Navbar"].Header, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Navbar"].Brand, null, "Issue Tracker")), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Nav"], null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_router_bootstrap__WEBPACK_IMPORTED_MODULE_2__["LinkContainer"], {
@@ -2773,9 +2825,14 @@ function NavBar() {
     to: "/report"
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["NavItem"], null, "Report"))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Col"], {
     sm: 5
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Navbar"].Form, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_Search_jsx__WEBPACK_IMPORTED_MODULE_5__["default"], null))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Nav"], {
+  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Navbar"].Form, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_Search_jsx__WEBPACK_IMPORTED_MODULE_6__["default"], null))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Nav"], {
     pullRight: true
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_IssueAddNavItem_jsx__WEBPACK_IMPORTED_MODULE_4__["default"], null), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["NavDropdown"], {
+  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_IssueAddNavItem_jsx__WEBPACK_IMPORTED_MODULE_4__["default"], {
+    user: user
+  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_SignInNavItem_jsx__WEBPACK_IMPORTED_MODULE_5__["default"], {
+    user: user,
+    onUserChange: onUserChange
+  }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["NavDropdown"], {
     id: "user-dropdown",
     title: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Glyphicon"], {
       glyph: "option-vertical"
@@ -2794,10 +2851,59 @@ function Footer() {
   }, "GitHub repository")));
 }
 
-function Page() {
-  return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(NavBar, null), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Grid"], {
-    fluid: true
-  }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_Contents_jsx__WEBPACK_IMPORTED_MODULE_3__["default"], null)), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(Footer, null));
+class Page extends react__WEBPACK_IMPORTED_MODULE_0___default.a.Component {
+  static async fetchData(cookie) {
+    const query = `query { user {
+      signedIn givenName
+    }}`;
+    const data = await Object(_graphQLFetch_js__WEBPACK_IMPORTED_MODULE_8__["default"])(query, null, null, cookie);
+    return data;
+  }
+
+  constructor(props) {
+    super(props);
+    const user = _store_js__WEBPACK_IMPORTED_MODULE_9__["default"].userData ? _store_js__WEBPACK_IMPORTED_MODULE_9__["default"].userData.user : null;
+    delete _store_js__WEBPACK_IMPORTED_MODULE_9__["default"].userData;
+    this.state = {
+      user
+    };
+    this.onUserChange = this.onUserChange.bind(this);
+  }
+
+  async componentDidMount() {
+    const {
+      user
+    } = this.state;
+
+    if (user == null) {
+      const data = await Page.fetchData();
+      this.setState({
+        user: data.user
+      });
+    }
+  }
+
+  onUserChange(user) {
+    this.setState({
+      user
+    });
+  }
+
+  render() {
+    const {
+      user
+    } = this.state;
+    if (user == null) return null;
+    return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("div", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(NavBar, {
+      user: user,
+      onUserChange: this.onUserChange
+    }), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Grid"], {
+      fluid: true
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_UserContext_js__WEBPACK_IMPORTED_MODULE_7__["default"].Provider, {
+      value: user
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(_Contents_jsx__WEBPACK_IMPORTED_MODULE_3__["default"], null))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(Footer, null));
+  }
+
 }
 
 /***/ }),
@@ -2877,6 +2983,192 @@ class Search extends react__WEBPACK_IMPORTED_MODULE_0___default.a.Component {
 }
 
 /* harmony default export */ __webpack_exports__["default"] = (Object(react_router_dom__WEBPACK_IMPORTED_MODULE_2__["withRouter"])(Object(_withToast_jsx__WEBPACK_IMPORTED_MODULE_4__["default"])(Search)));
+
+/***/ }),
+
+/***/ "./src/SignInNavItem.jsx":
+/*!*******************************!*\
+  !*** ./src/SignInNavItem.jsx ***!
+  \*******************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "react");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var react_bootstrap__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-bootstrap */ "react-bootstrap");
+/* harmony import */ var react_bootstrap__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _withToast_jsx__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./withToast.jsx */ "./src/withToast.jsx");
+
+
+
+
+class SigninNavItem extends react__WEBPACK_IMPORTED_MODULE_0___default.a.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      showing: false,
+      disabled: true
+    };
+    this.showModal = this.showModal.bind(this);
+    this.hideModal = this.hideModal.bind(this);
+    this.signOut = this.signOut.bind(this);
+    this.signIn = this.signIn.bind(this);
+  }
+
+  componentDidMount() {
+    const clientId = window.ENV.GOOGLE_CLIENT_ID;
+    if (!clientId) return;
+    window.gapi.load('auth2', () => {
+      if (!window.gapi.auth2.getAuthInstance()) {
+        window.gapi.auth2.init({
+          client_id: clientId
+        }).then(() => {
+          this.setState({
+            disabled: false
+          });
+        });
+      }
+    });
+  }
+
+  async signIn() {
+    this.hideModal();
+    const {
+      showError
+    } = this.props;
+    let googleToken;
+
+    try {
+      const auth2 = window.gapi.auth2.getAuthInstance();
+      const googleUser = await auth2.signIn();
+      googleToken = googleUser.getAuthResponse().id_token;
+    } catch (error) {
+      showError(`Error authenticating with Google: ${error.error}`);
+    }
+
+    try {
+      const apiEndpoint = window.ENV.UI_AUTH_ENDPOINT;
+      const response = await fetch(`${apiEndpoint}/signin`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          google_token: googleToken
+        })
+      });
+      const body = await response.text();
+      const result = JSON.parse(body);
+      const {
+        signedIn,
+        givenName
+      } = result;
+      const {
+        onUserChange
+      } = this.props;
+      onUserChange({
+        signedIn,
+        givenName
+      });
+    } catch (error) {
+      showError(`Error signing into the app: ${error}`);
+    }
+  }
+
+  async signOut() {
+    const apiEndpoint = window.ENV.UI_AUTH_ENDPOINT;
+    const {
+      showError
+    } = this.props;
+
+    try {
+      await fetch(`${apiEndpoint}/signout`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      const auth2 = window.gapi.auth2.getAuthInstance();
+      await auth2.signOut();
+      const {
+        onUserChange
+      } = this.props;
+      onUserChange({
+        signedIn: false,
+        givenName: ''
+      });
+    } catch (error) {
+      showError(`Error signing out: ${error}`);
+    }
+  }
+
+  showModal() {
+    const clientId = window.ENV.GOOGLE_CLIENT_ID;
+    const {
+      showError
+    } = this.props;
+
+    if (!clientId) {
+      showError('Missing environment variable GOOGLE_CLIENT_ID');
+      return;
+    }
+
+    this.setState({
+      showing: true
+    });
+  }
+
+  hideModal() {
+    this.setState({
+      showing: false
+    });
+  }
+
+  render() {
+    const {
+      user
+    } = this.props;
+
+    if (user.signedIn) {
+      return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["NavDropdown"], {
+        title: user.givenName,
+        id: "user"
+      }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["MenuItem"], {
+        onClick: this.signOut
+      }, "Sign out"));
+    }
+
+    const {
+      showing,
+      disabled
+    } = this.state;
+    return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react__WEBPACK_IMPORTED_MODULE_0___default.a.Fragment, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["NavItem"], {
+      onClick: this.showModal
+    }, "Sign in"), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Modal"], {
+      keyboard: true,
+      show: showing,
+      onHide: this.hideModal,
+      bsSize: "sm"
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Modal"].Header, {
+      closeButton: true
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Modal"].Title, null, "Sign in")), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Modal"].Body, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Button"], {
+      block: true,
+      disabled: disabled,
+      bsStyle: "primary",
+      onClick: this.signIn
+    }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement("img", {
+      src: "https://goo.gl/4yjp6B",
+      alt: "Sign In"
+    }))), /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Modal"].Footer, null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default.a.createElement(react_bootstrap__WEBPACK_IMPORTED_MODULE_1__["Button"], {
+      bsStyle: "link",
+      onClick: this.hideModal
+    }, "Cancel"))));
+  }
+
+}
+
+/* harmony default export */ __webpack_exports__["default"] = (Object(_withToast_jsx__WEBPACK_IMPORTED_MODULE_2__["default"])(SigninNavItem));
 
 /***/ }),
 
@@ -3003,6 +3295,25 @@ class Toast extends react__WEBPACK_IMPORTED_MODULE_0___default.a.Component {
   }
 
 }
+
+/***/ }),
+
+/***/ "./src/UserContext.js":
+/*!****************************!*\
+  !*** ./src/UserContext.js ***!
+  \****************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react */ "react");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_0__);
+
+const UserContext = react__WEBPACK_IMPORTED_MODULE_0___default.a.createContext({
+  signedIn: false
+});
+/* harmony default export */ __webpack_exports__["default"] = (UserContext);
 
 /***/ }),
 
